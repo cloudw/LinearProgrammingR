@@ -1,0 +1,128 @@
+---
+title: "Simplex"
+author: "Yun Wu (cloudw)"
+date: "5/6/2017"
+output: pdf_document
+---
+
+```{r}
+# Take a simplex tableau and returns the next tableau
+# The first row of tableau is expected to be cost vector
+# The first column of tableau is expected to be current value of basis
+# tableau should already be solved for some basis as required by simplex algorithm
+# If assumptions are not satisfied, behavior is undefined.
+simplex_step = function(tableau, rule = "Bland", verbose = TRUE, inputVerbose = verbose, outputVerbose = verbose){
+  # Input check: Need not to be comprehensive, but make sure program does not break.
+  if (!is.matrix(tableau) || 
+      ncol(tableau) < 2 || nrow(tableau) < 2){
+    warning("simplex_step(): Invalid tableau input\n")
+    return(NULL)
+  } else if (sum(tableau[2:nrow(tableau), 1] < 0) > 0){
+    warning("simplex_step(): Tableau should have nonnegative constraints\n")
+    return(NULL)
+  }
+  
+  if (!is.null(colnames(tableau))){
+    if (is.null(rownames(tableau))){
+      rownames(tableau) = 0:(nrow(tableau) - 1)
+    }
+  }
+  
+  if (inputVerbose){
+    cat("Input tableau:\n")
+    print(tableau)
+  }
+  
+  # Find pivotal column
+  pivotal_column = 0;
+  for (c in 2:ncol(tableau)){
+    if (tableau[1, c] < 0){
+      pivotal_column = c
+      break;
+    }
+  }
+  if (pivotal_column == 0){
+    if (verbose){
+      cat("Input tableau is either already solved or not solvable\n");
+    }
+    return(NULL)
+  }
+  
+  # Find pivotal row
+  pivotal_row = 0;
+  lowest_ratio = Inf
+  for (r in 2:nrow(tableau)){
+    curr_ratio = tableau[r, 1] / tableau[r, pivotal_column]
+    if (lowest_ratio > curr_ratio){
+      pivotal_row = r
+      lowest_ratio = curr_ratio
+    }
+  }
+  
+    
+  if (verbose){
+    row_str = pivotal_row - 1 
+    col_str = pivotal_column
+    if (!is.null(colnames(tableau))){
+      col_str = colnames(tableau)[pivotal_column]
+    }
+    if (!is.null(rownames(tableau))){
+      row_str = rownames(tableau)[pivotal_row]
+    }    
+    cat ("Pivotal row = ", row_str, ", pivotal column = ", col_str, "\n", sep = "")
+  }
+  
+  # Pivoting
+  tableau[pivotal_row,] = tableau[pivotal_row,] / tableau[pivotal_row, pivotal_column]
+  for (r in 1:nrow(tableau)){
+    if (r == pivotal_row) {
+      next;
+    }
+    tableau[r,] = tableau[r,] - tableau[r,pivotal_column] * tableau[pivotal_row,]
+  }
+  if (!is.null(colnames(tableau))){
+    rownames(tableau)[pivotal_row] = colnames(tableau)[pivotal_column]
+  }
+  
+  if (sum(tableau[2:nrow(tableau), 1] < 0) > 0){
+    warning("simplex_step(): Invalid tableau obtianed after pivoting. Please check input.\n")
+    if (verbose){
+      cat("The invalid pivoted tableau:\n")
+      print(tableau)
+    }
+    return(NULL)
+  }
+  
+  if (outputVerbose){
+    print(tableau)
+  }
+  
+  if (verbose && !sum(tableau[1, 2:ncol(tableau)] < 0)){
+    cat("Simplex algorithm terminated.\n");
+  }
+  
+  return(tableau)
+}
+
+simplex = function(x, rule = "Bland", verbose = TRUE){
+  next_x = x;
+  input_flag = TRUE;
+  while (!is.null(next_x)){
+    x = next_x
+    next_x = simplex_step(x, rule, verbose, inputVerbose = (verbose && input_flag), outputVerbose = verbose)
+    input_flag = FALSE;
+  }
+  return(x)
+}
+
+
+x = rbind(
+  c(-5, 0, 10, -2, -5),
+  c(1, 2, 3, 4, 5),
+  c(4, 2, 1, 3, 2)
+)
+colnames(x) = c("-z", "x1", "x2", "x3", "x4")
+
+x = simplex(x)
+```
+
